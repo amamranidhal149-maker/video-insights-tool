@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Analyze YouTube videos, preview thumbnails, inspect video details, and generate SEO ideas for your content.">
+<title>Video Insights - Free YouTube Analyzer</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;background:#0b1020;color:#f8fafc;
+  font-family:Arial,sans-serif;line-height:1.6
+}
+header{
+  padding:22px 6%;border-bottom:1px solid #263044;
+  display:flex;justify-content:space-between;align-items:center
+}
+.logo{font-size:23px;font-weight:bold;color:#60a5fa}
+.badge{font-size:12px;color:#86efac}
+main{max-width:900px;margin:45px auto;padding:0 18px}
+.hero{text-align:center;margin-bottom:35px}
+h1{font-size:clamp(30px,6vw,46px);line-height:1.2}
+.hero p{color:#aab5ca}
+.card{
+  background:#141c30;border:1px solid #293650;
+  border-radius:16px;padding:24px;margin-bottom:22px
+}
+label{display:block;font-weight:bold;margin-bottom:10px}
+input,textarea{
+  width:100%;padding:15px;border-radius:9px;
+  border:1px solid #3b4963;background:#0b1020;
+  color:white;font-size:16px;margin-bottom:12px
+}
+button{
+  border:0;border-radius:9px;padding:13px 18px;
+  font-size:15px;font-weight:bold;cursor:pointer
+}
+.primary{background:#3b82f6;color:white;width:100%}
+.secondary{background:#263650;color:white;margin:5px 3px 0 0}
+button:hover{opacity:.85}
+#message{color:#fbbf24;font-size:14px}
+#results{display:none}
+.thumb{width:100%;border-radius:12px;display:block}
+.video-title{overflow-wrap:anywhere}
+.row{
+  display:flex;justify-content:space-between;gap:12px;
+  border-bottom:1px solid #293650;padding:12px 0
+}
+.row span:first-child{color:#9caec8}
+.row span:last-child{overflow-wrap:anywhere;text-align:right}
+h2{font-size:22px}
+small,.muted{color:#9caec8}
+footer{text-align:center;color:#9caec8;padding:30px 15px}
+a{color:#60a5fa}
+@media(max-width:500px){
+  main{margin-top:28px}
+  .card{padding:17px}
+  header{padding:17px}
+}
+</style>
+</head>
+
+<body>
+<header>
+  <div class="logo">▶ Video Insights</div>
+  <div class="badge">FREE VIDEO TOOLS</div>
+</header>
+
+<main>
+  <section class="hero">
+    <h1>Understand Your YouTube Videos</h1>
+    <p>Preview videos, inspect available details, and get ideas to improve your content.</p>
+  </section>
+
+  <section class="card">
+    <label for="videoUrl">YouTube video URL</label>
+    <input id="videoUrl" type="url"
+      placeholder="https://www.youtube.com/watch?v=..."
+      autocomplete="url">
+    <button class="primary" onclick="analyzeVideo()">Analyze Video →</button>
+    <p id="message">Paste a public YouTube video link to get started.</p>
+  </section>
+
+  <section id="results" class="card">
+    <h2>Video Overview</h2>
+    <img id="thumbnail" class="thumb" alt="Video thumbnail">
+    <h2 id="videoTitle" class="video-title">Video preview</h2>
+
+    <div class="row">
+      <span>Video ID</span>
+      <span id="videoId"></span>
+    </div>
+
+    <div class="row">
+      <span>Video URL</span>
+      <span><a id="watchLink" target="_blank"
+        rel="noopener noreferrer">Watch on YouTube ↗</a></span>
+    </div>
+
+    <div class="row">
+      <span>Thumbnail</span>
+      <span><a id="imageLink" target="_blank"
+        rel="noopener noreferrer">Open image ↗</a></span>
+    </div>
+
+    <button class="secondary" onclick="copyVideoId()">Copy Video ID</button>
+    <button class="secondary" onclick="openVideo()">Open Video</button>
+
+    <p class="muted">
+      Note: This first version previews the video and extracts its ID.
+      It does not yet retrieve private metadata, hidden tags, or live statistics.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>SEO Title Ideas</h2>
+    <p class="muted">Enter your video topic to generate simple title ideas.</p>
+    <input id="topic" type="text" maxlength="150"
+      placeholder="Example: Funny monkey dance">
+    <button class="primary" onclick="generateTitles()">Generate Titles</button>
+    <div id="titleResults"></div>
+  </section>
+
+  <section class="card">
+    <h2>Hashtag Generator</h2>
+    <p class="muted">Create basic hashtags from your video topic.</p>
+    <input id="hashtagTopic" type="text" maxlength="150"
+      placeholder="Example: football skills">
+    <button class="primary" onclick="generateHashtags()">Generate Hashtags</button>
+    <div id="hashtagResults"></div>
+  </section>
+
+  <section class="card">
+    <h2>About Video Insights</h2>
+    <p>
+      Video Insights is a simple toolkit for creators who want to inspect
+      YouTube video links and brainstorm content ideas.
+    </p>
+    <p class="muted">
+      This independent project is not affiliated with YouTube or Google.
+    </p>
+  </section>
+</main>
+
+<footer>
+  Video Insights · Free tools for video creators
+</footer>
+
+<script>
+function getVideoId(input) {
+  try {
+    const url = new URL(input.trim());
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+
+    if (host === "youtu.be") {
+      return url.pathname.split("/").filter(Boolean)[0] || null;
+    }
+
+    if (
+      host === "youtube.com" ||
+      host === "m.youtube.com" ||
+      host === "youtube-nocookie.com"
+    ) {
+      if (url.pathname === "/watch") {
+        return url.searchParams.get("v");
+      }
+
+      const parts = url.pathname.split("/").filter(Boolean);
+
+      if (["shorts", "embed", "live"].includes(parts[0])) {
+        return parts[1] || null;
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function analyzeVideo() {
+  const input = document.getElementById("videoUrl").value.trim();
+  const message = document.getElementById("message");
+  const id = getVideoId(input);
+
+  if (!id || !/^[a-zA-Z0-9_-]{11}$/.test(id)) {
+    message.textContent = "Please enter a valid YouTube video URL.";
+    document.getElementById("results").style.display = "none";
+    return;
+  }
+
+  const watchUrl = "https://www.youtube.com/watch?v=" + id;
+  const imageUrl = "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg";
+
+  document.getElementById("videoId").textContent = id;
+  document.getElementById("thumbnail").src = imageUrl;
+  document.getElementById("imageLink").href = imageUrl;
+  document.getElementById("watchLink").href = watchUrl;
+
+  document.getElementById("videoTitle").textContent =
+    "YouTube Video Preview";
+
+  document.getElementById("results").style.display = "block";
+  message.textContent = "Video link recognized successfully!";
+
+  document.getElementById("results").scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+}
+
+function copyVideoId() {
+  const id = document.getElementById("videoId").textContent;
+
+  if (!id) return;
+
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(id)
+      .then(() => alert("Video ID copied!"))
+      .catch(() => prompt("Copy your video ID:", id));
+  } else {
+    prompt("Copy your video ID:", id);
+  }
+}
+
+function openVideo() {
+  const id = document.getElementById("videoId").textContent;
+  if (id) {
+    window.open(
+      "https://www.youtube.com/watch?v=" + id,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }
+}
+
+function generateTitles() {
+  const topic = document.getElementById("topic").value.trim();
+  const output = document.getElementById("titleResults");
+
+  output.replaceChildren();
+
+  if (!topic) {
+    output.textContent = "Please enter a video topic first.";
+    return;
+  }
+
+  const titles = [
+    topic + " - Everything You Need to Know",
+    "Top Tips for " + topic,
+    "Watch This Before Trying " + topic,
